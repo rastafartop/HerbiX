@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Каталог</title>
+
+  <link rel="stylesheet" href="./assets/css/style.css" />
+  <link rel="stylesheet" href="./assets/css/catalog.css">
+  <link rel="stylesheet" href="./assets/css/variants.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<header class="header">
+  <div class="container header-content">
+    <a href="index.html" class="logo-link">
+      <img src="./assets/logo.svg" alt="HerbiX" id="logo" />
+    </a>
+
+    <nav class="nav">
+      <a href="catalog.html">Каталог</a>
+      <a href="index.html#about">О нас</a>
+      <a href="index.html#delivery">Доставка</a>
+      <a href="index.html#contacts">Контакты</a>
+    </nav>
+
+    <a href="auth.html" class="auth-user">
+      <span class="auth-user-icon">👤</span>
+      <span class="auth-user-text">Войти</span>
+    </a>
+
+    <button id="cart-button" class="cart-button">
+      🛒 Корзина (<span id="cart-count">0</span>)
+    </button>
+  </div>
+</header>
+
+
+
+<section class="container catalog-page">
+  <h1>Каталог товаров</h1>
+
+  <div class="search-box">
+  <div class="search-wrapper">
+    <input type="text" id="search" placeholder="Поиск товаров, брендов..." autocomplete="off" />
+    <button id="search-button" class="search-btn-trigger">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+  <div class="categories">
+    <button class="category" data-category="all">Все</button>
+    <button class="category" data-category="belki">🍃 Белки</button>
+    <button class="category" data-category="geinery">🏋 Гейнеры</button>
+    <button class="category" data-category="aminokisloty">💊 Аминокислоты</button>
+  </div>
+
+  <div id="products" class="products-grid"></div>
+  <div id="products-status" class="products-status"></div>
+</section>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-col footer-brand">
+      <a href="index.html" class="footer-logo-link">
+        <img src="./assets/logo.svg" alt="HerbiX" class="footer-logo" />
+      </a>
+      <p class="footer-text">
+        HerbiX — интернет-магазин спортивного питания.  
+        Помогаем подобрать продукты под твои цели и тренировки.
+      </p>
+    </div>
+
+    <div class="footer-col">
+      <h4 class="footer-title">Разделы</h4>
+      <ul class="footer-links">
+        <li><a href="catalog.html">Каталог</a></li>
+        <li><a href="index.html#about">О нас</a></li>
+        <li><a href="index.html#delivery">Доставка</a></li>
+        <li><a href="index.html#faq">Частые вопросы</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-col">
+      <h4 class="footer-title">Контакты</h4>
+      <ul class="footer-contacts">
+        <li>📞 +7 (777) 000-00-00</li>
+        <li>✉️ support@herbix.kz</li>
+        <li>⏰ Ежедневно с 10:00 до 20:00</li>
+        <li>📍 Алматы, Казахстан</li>
+      </ul>
+    </div>
+
+    <div class="footer-col footer-extra">
+      <h4 class="footer-title">Мы в соцсетях</h4>
+      <div class="footer-socials">
+        <a href="#" class="footer-social">Instagram</a>
+        <a href="#" class="footer-social">Telegram</a>
+        <a href="#" class="footer-social">TikTok</a>
+      </div>
+      <p class="footer-text footer-payments">
+        Принимаем оплату картами и онлайн-сервисами.
+      </p>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <div class="container footer-bottom-inner">
+      <span>© HerbiX, 2025</span>
+      <span>Политика конфиденциальности · Пользовательское соглашение</span>
+    </div>
+  </div>
+</footer>
+
+
+  <!-- МОДАЛКА ТОВАРА -->
+  <div id="product-modal" class="modal-overlay">
+    <div class="modal-window">
+      <button class="modal-close" id="product-modal-close">&times;</button>
+
+      <div class="modal-layout">
+        <div class="modal-left">
+          <div class="modal-image">
+            <img src="" alt="" id="modal-image" />
+          </div>
+        </div>
+
+        <div class="modal-right">
+          <h3 class="modal-title" id="modal-title">Название продукта</h3>
+          <p class="modal-description" id="modal-description">
+            Описание продукта
+          </p>
+          <div class="product-variants" id="variant-controls"></div>
+          <div class="modal-bottom">
+            <div class="modal-price" id="modal-price">0 ₸</div>
+
+            <div class="modal-footer">
+              <div class="modal-qty">
+                <button id="modal-qty-minus" class="qty-btn">−</button>
+                <span id="modal-qty-value">1</span>
+                <button id="modal-qty-plus" class="qty-btn qty-btn-plus">+</button>
+              </div>
+
+              <div class="modal-footer-right">
+                <button class="btn-primary" id="modal-add-to-cart">
+                  В корзину
+                </button>
+                <div class="modal-total" id="modal-total">Итого: 0 ₸</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Корзина (если её тоже хочешь в каталоге) -->
+  <div id="cart-modal" class="cart-overlay">
+    <div class="cart-panel">
+      <div class="cart-header">
+        <h3>Корзина</h3>
+        <button id="cart-close" class="cart-close">&times;</button>
+      </div>
+
+      <div id="cart-items" class="cart-items"></div>
+
+      <div class="cart-footer">
+        <div class="cart-total">
+          Итого: <span id="cart-total">0 ₸</span>
+        </div>
+        <div>
+          <button id="cart-clear" class="btn-secondary">Очистить</button>
+          <button id="cart-checkout" class="btn-primary">Оформить заказ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+<script src="./assets/js/app.js"></script>
+<script src="./assets/js/user-nav.js"></script>
+<script src="./assets/js/variants.js"></script>
+<script src="./assets/js/checkout.js"></script>
+</body>
+</html>

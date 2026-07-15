@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Мои заказы — HerbiX</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.0/dist/umd/supabase.min.js"></script>
+  <style>
+    .orders-page { padding: 48px 0 100px; }
+
+    .orders-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .orders-header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #111d11;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .orders-count-badge {
+      font-size: 13px;
+      font-weight: 700;
+      color: #3a6e4f;
+      background: #e8f5ee;
+      padding: 5px 14px;
+      border-radius: 999px;
+    }
+
+    /* ── Order Card ── */
+    .order-card {
+      background: #fff;
+      border-radius: 20px;
+      border: 1.5px solid #e8ede8;
+      box-shadow: 0 2px 12px rgba(58,110,79,0.05);
+      margin-bottom: 20px;
+      overflow: hidden;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .order-card:hover { box-shadow: 0 8px 28px rgba(58,110,79,0.12); }
+
+    .order-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 16px;
+      cursor: pointer;
+      user-select: none;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .order-card-head:hover { background: #fafcfa; }
+
+    .order-num {
+      font-size: 13px;
+      font-weight: 800;
+      color: #3a6e4f;
+      letter-spacing: 0.3px;
+    }
+    .order-date { font-size: 12px; color: #9ab09a; margin-top: 2px; }
+
+    .order-items-preview {
+      display: flex;
+      flex: 1;
+      justify-content: center;
+    }
+    .order-thumb {
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid #fff;
+      background: #f0f4f0;
+      margin-left: -6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .order-thumb:first-child { margin-left: 0; }
+    .order-thumb-placeholder {
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      background: #e8f0ea;
+      border: 2px solid #fff;
+      margin-left: -6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .order-thumb-placeholder:first-child { margin-left: 0; }
+    .order-more-badge {
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      background: #e8f0ea;
+      border: 2px solid #fff;
+      margin-left: -6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #3a6e4f;
+    }
+
+    .order-card-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .order-total-price {
+      font-size: 18px;
+      font-weight: 800;
+      color: #111d11;
+      white-space: nowrap;
+    }
+    .order-chevron {
+      color: #c0d0c0;
+      transition: transform 0.25s;
+      flex-shrink: 0;
+    }
+    .order-card.expanded .order-chevron { transform: rotate(180deg); }
+
+    /* ── Status Pills ── */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status-pill::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .status-new          { background:#fff3ec; color:#e07b39; }
+    .status-confirmed    { background:#e8f0fb; color:#3a8fd4; }
+    .status-in_delivery  { background:#f3edfb; color:#8a5dc8; }
+    .status-delivered    { background:#e8f5ee; color:#2e7d4f; }
+    .status-cancelled    { background:#fdecea; color:#c0392b; }
+    .status-pickup_ready { background:#fff8e1; color:#b07d00; }
+    .status-picked_up    { background:#e8f5ee; color:#2e7d4f; }
+
+    /* ── Realtime pulse indicator ── */
+    .realtime-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #3a6e4f;
+      display: inline-block;
+      margin-right: 6px;
+      animation: rtPulse 2s ease infinite;
+    }
+    @keyframes rtPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(58,110,79,0.4); }
+      50%      { box-shadow: 0 0 0 5px rgba(58,110,79,0); }
+    }
+
+    /* ── Card Body ── */
+    .order-card-body {
+      display: none;
+      border-top: 1.5px solid #edf3ef;
+      padding: 20px 22px 22px;
+    }
+    .order-card.expanded .order-card-body {
+      display: block;
+      animation: bodySlide 0.22s ease both;
+    }
+    @keyframes bodySlide {
+      from { opacity:0; transform:translateY(-6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* ── Status Tracker ── */
+    .status-tracker { margin-bottom: 24px; }
+    .status-tracker-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #8aab8a;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+    }
+    .tracker-steps {
+      display: flex;
+      align-items: flex-start;
+    }
+    .tracker-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      gap: 8px;
+    }
+    .tracker-step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2.5px solid #dde8dd;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+      transition: all 0.3s;
+    }
+    .tracker-step-dot svg { opacity: 0; transition: opacity 0.3s; }
+    .tracker-step.done .tracker-step-dot { background:#3a6e4f; border-color:#3a6e4f; }
+    .tracker-step.done .tracker-step-dot svg { opacity: 1; }
+    .tracker-step.active .tracker-step-dot {
+      background: #fff;
+      border-color: #3a6e4f;
+      animation: trackerPulse 2s ease infinite;
+    }
+    .tracker-step.active .tracker-step-dot::after {
+      content: '';
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #3a6e4f;
+    }
+    @keyframes trackerPulse {
+      0%,100% { box-shadow: 0 0 0 4px rgba(58,110,79,0.15); }
+      50%      { box-shadow: 0 0 0 8px rgba(58,110,79,0.08); }
+    }
+    .tracker-step-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #b0c4b0;
+      text-align: center;
+      line-height: 1.3;
+      max-width: 72px;
+    }
+    .tracker-step.done .tracker-step-label,
+    .tracker-step.active .tracker-step-label { color: #2d5840; font-weight: 700; }
+    .tracker-connector {
+      flex: 1;
+      height: 2.5px;
+      background: #dde8dd;
+      margin-top: 13px;
+      border-radius: 2px;
+      transition: background 0.4s;
+      min-width: 12px;
+    }
+    .tracker-connector.done { background: #3a6e4f; }
+
+    /* ── Status update flash ── */
+    .status-updated-flash {
+      animation: flashGreen 1.2s ease both;
+    }
+    @keyframes flashGreen {
+      0%   { background: #c8f0d8; }
+      100% { background: transparent; }
+    }
+
+    /* ── Order Items ── */
+    .order-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .order-item-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: #f8faf8;
+      border-radius: 12px;
+    }
+    .order-item-img {
+      width: 44px; height: 44px;
+      border-radius: 9px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #eee;
+    }
+    .order-item-info { flex: 1; min-width: 0; }
+    .order-item-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #1a2e1a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-item-meta { font-size: 12px; color: #8aab8a; margin-top: 2px; }
+    .order-item-price {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #3a6e4f;
+      white-space: nowrap;
+    }
+
+    /* ── Delivery info ── */
+    .order-delivery-block {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1.5px solid #edf3ef;
+    }
+    .order-detail-item { display: flex; flex-direction: column; gap: 3px; }
+    .order-detail-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #9ab09a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .order-detail-value { font-size: 13.5px; font-weight: 600; color: #1a2e1a; }
+
+    /* ── Cancel button ── */
+    .btn-cancel-order {
+      margin-top: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 20px;
+      background: transparent;
+      border: 1.5px solid #f0c8c4;
+      border-radius: 12px;
+      color: #c0392b;
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .btn-cancel-order:hover {
+      background: #fdecea;
+      border-color: #e07070;
+    }
+    .btn-cancel-order:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Empty state ── */
+    .orders-empty {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    .orders-empty-icon {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: #e8f5ee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .orders-empty h2 { font-size: 22px; color: #1a2e1a; margin: 0 0 10px; }
+    .orders-empty p  { font-size: 14px; color: #7a9a7a; margin: 0 0 24px; }
+
+    /* ── Skeleton ── */
+    .order-skeleton {
+      background: #fff;
+      border-radius: 20px;
+      border: 1.5px solid #edf3ef;
+      padding: 20px 22px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .skel {
+      background: linear-gradient(90deg,#f0f4f0 25%,#e4ebe4 50%,#f0f4f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    @media (max-width: 600px) {
+      .orders-page { padding: 28px 0 80px; }
+      .order-card-head { padding: 14px 16px 12px; }
+      .order-card-body { padding: 16px; }
+      .order-delivery-block { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-content">
+      <a href="index.html" class="logo-link">
+        <img src="./assets/logo.svg" alt="HerbiX" id="logo" />
+      </a>
+      <nav class="nav">
+        <a href="catalog.html">Каталог</a>
+        <a href="index.html#about">О нас</a>
+        <a href="index.html#delivery">Доставка</a>
+        <a href="index.html#contacts">Контакты</a>
+      </nav>
+      <a href="auth.html" class="auth-user">
+        <span class="auth-user-icon">👤</span>
+        <span class="auth-user-text">Войти</span>
+      </a>
+      <button id="cart-button" class="cart-button">
+        🛒 Корзина (<span id="cart-count">0</span>)
+      </button>
+    </div>
+  </header>
+
+  <main class="container orders-page">
+    <div class="orders-header">
+      <h1>Мои заказы</h1>
+      <span class="orders-count-badge" id="orders-count-badge" style="display:none"></span>
+    </div>
+
+    <div id="orders-loading">
+      <div class="order-skeleton">
+        <div class="skel" style="width:38px;height:38px;border-radius:9px;flex-shrink:0"></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <div class="skel" style="height:14px;width:40%"></div>
+          <div class="skel" style="height:12px;width:60%"></div>
+        </div>
+        <div class="skel" style="height:24px;width:80px;border-radius:999px"></div>
+        <div class="skel" style="height:18px;width:90px"></div>
+      </div>
+      <div class="order-skeleton">
+        <div class="skel" style="width:38px;height:38px;border-radius:9px;flex-shrink:0"></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <div class="skel" style="height:14px;width:35%"></div>
+          <div class="skel" style="height:12px;width:55%"></div>
+        </div>
+        <div class="skel" style="height:24px;width:80px;border-radius:999px"></div>
+        <div class="skel" style="height:18px;width:90px"></div>
+      </div>
+    </div>
+
+    <div id="orders-list" style="display:none"></div>
+
+    <div class="orders-empty" id="orders-empty" style="display:none">
+      <div class="orders-empty-icon">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3a6e4f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 01-8 0"/>
+        </svg>
+      </div>
+      <h2>Заказов пока нет</h2>
+      <p>Здесь появится история всех ваших покупок</p>
+      <a href="catalog.html" class="btn-primary" style="display:inline-block;padding:12px 28px;text-decoration:none;border-radius:12px;">Перейти в каталог</a>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/user-nav.js"></script>
+
+  <script>
+  (() => {
+    // ═══════════════════════════════════════════
+    // CONFIG
+    // ═══════════════════════════════════════════
+    const SUPABASE_URL = "https://qjytxxkztdeyxygoiybi.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqeXR4eGt6dGRleXh5Z29peWJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0MjM3NjcsImV4cCI6MjA4OTk5OTc2N30.afZ40Kl6SXjTt7DGtIFDyKWPsYxaC75_jL1X79PonpQ";
+
+    const STATUS_CONFIG = {
+      new:          { label: "Новый",           cls: "status-new" },
+      confirmed:    { label: "Подтверждён",     cls: "status-confirmed" },
+      in_delivery:  { label: "В доставке",      cls: "status-in_delivery" },
+      delivered:    { label: "Доставлен",       cls: "status-delivered" },
+      cancelled:    { label: "Отменён",         cls: "status-cancelled" },
+      pickup_ready: { label: "Готов к выдаче",  cls: "status-pickup_ready" },
+      picked_up:    { label: "Заказ получен",   cls: "status-picked_up" },
+    };
+
+    // Трекеры разные для курьера и самовывоза
+    const TRACKER_STEPS_DELIVERY = [
+      { key: "new",         label: "Принят" },
+      { key: "confirmed",   label: "Подтверждён" },
+      { key: "in_delivery", label: "В пути" },
+      { key: "delivered",   label: "Доставлен" },
+    ];
+// Настройки для 3 статусов самовывоза
+const TRACKER_STEPS_PICKUP = [
+      { key: "new",          label: "Принят" },
+      { key: "confirmed",    label: "Подтверждён" },
+      { key: "pickup_ready", label: "Готов к выдаче" },
+      { key: "picked_up",    label: "Выдан" },
+    ];
+
+
+    // Для обратной совместимости
+    const TRACKER_STEPS = TRACKER_STEPS_DELIVERY;
+    const STEP_ORDER = ["new", "confirmed", "in_delivery", "delivered"];
+const STEP_ORDER_PICKUP = ["new", "confirmed", "pickup_ready", "picked_up"];
+
+    // Отмена доступна только для этих статусов
+    const CANCELLABLE = ["new", "confirmed", "pickup_ready"];
+
+    function esc(s) {
+      return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+    function fmtDate(iso) {
+      return new Date(iso).toLocaleString("ru-RU",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    }
+    function fmtPrice(n) { return Number(n||0).toLocaleString("ru-RU") + " ₸"; }
+    function plural(n) {
+      if(n%10===1&&n%100!==11) return "заказ";
+      if([2,3,4].includes(n%10)&&![12,13,14].includes(n%100)) return "заказа";
+      return "заказов";
+    }
+    function showToast(msg, color="#3a6e4f") {
+      const t = document.getElementById("toast");
+      if(!t) return;
+      t.textContent = msg;
+      t.style.background = color;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2800);
+    }
+
+    // ── Трекер статуса ─────────────────────────
+function buildTracker(status, deliveryType) { // Добавили deliveryType
+      if (status === "cancelled") {
+        return `<div class="status-tracker">
+          <div class="status-tracker-title">Статус заказа</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fdecea;border-radius:12px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span style="font-size:13.5px;font-weight:700;color:#c0392b;">Заказ отменён</span>
+          </div>
+        </div>`;
+      }
+
+      // Определяем тип доставки напрямую
+      const isPickup = deliveryType === "pickup";
+      const steps    = isPickup ? TRACKER_STEPS_PICKUP : TRACKER_STEPS_DELIVERY;
+      const order    = isPickup ? STEP_ORDER_PICKUP     : STEP_ORDER;
+      const curIdx   = order.indexOf(status);
+
+      let html = "";
+      steps.forEach((step, i) => {
+        const done   = i < curIdx;
+        const active = i === curIdx;
+        const cls    = done ? "done" : (active ? "active" : "");
+        html += `<div class="tracker-step ${cls}">
+          <div class="tracker-step-dot">
+            ${done ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>` : ""}
+          </div>
+          <div class="tracker-step-label">${step.label}</div>
+        </div>`;
+        if (i < steps.length - 1) {
+          html += `<div class="tracker-connector ${done ? 'done' : ''}"></div>`;
+        }
+      });
+
+      const icon = isPickup
+        ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Самовывоз`
+        : `<span class="realtime-dot"></span>Доставка`;
+
+      return `<div class="status-tracker">
+        <div class="status-tracker-title" style="gap:6px;">
+          ${icon} — обновляется в реальном времени
+        </div>
+        <div class="tracker-steps">${html}</div>
+      </div>`;
+    }
+    // ── Обновление трекера без перерисовки карточки ──
+    function updateCardStatus(orderId, newStatus) {
+      const card = document.querySelector(`.order-card[data-id="${orderId}"]`);
+      if (!card) return;
+
+      card.dataset.status = newStatus;
+      const sc = STATUS_CONFIG[newStatus] || STATUS_CONFIG.new;
+
+      // Обновляем pill в шапке
+      const pill = card.querySelector(".status-pill");
+      if (pill) {
+        pill.className = `status-pill ${sc.cls}`;
+        pill.innerHTML = `${sc.label}`;
+      }
+
+      // Перерисовываем трекер
+// Перерисовываем трекер
+// Перерисовываем трекер
+      const tracker = card.querySelector(".status-tracker");
+      if (tracker) {
+        const deliveryType = card.dataset.deliveryType; // Извлекаем сохраненный тип
+        const temp = document.createElement("div");
+        temp.innerHTML = buildTracker(newStatus, deliveryType); // Передаем тип доставки
+        tracker.replaceWith(temp.firstElementChild);
+      }
+
+      // Показываем/скрываем кнопку отмены
+      const cancelBtn = card.querySelector(".btn-cancel-order");
+      if (cancelBtn) {
+        cancelBtn.style.display = CANCELLABLE.includes(newStatus) ? "flex" : "none";
+      }
+
+      // Flash анимация
+      const head = card.querySelector(".order-card-head");
+      if (head) {
+        head.classList.add("status-updated-flash");
+        setTimeout(() => head.classList.remove("status-updated-flash"), 1200);
+      }
+
+      showToast(`Статус заказа #${orderId} обновлён: ${sc.label}`);
+    }
+
+    // ── Отмена заказа клиентом ──────────────────
+    async function cancelOrder(db, orderId, btn) {
+      if (!confirm("Вы уверены, что хотите отменить заказ?")) return;
+      btn.disabled = true;
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.7s linear infinite"><path d="M21 12a9 9 0 11-18 0"/></svg> Отменяем...`;
+
+      const { error } = await db.from("orders").update({ status: "cancelled" }).eq("id", orderId);
+
+      if (error) {
+        showToast("Не удалось отменить заказ", "#c0392b");
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Отменить заказ`;
+        return;
+      }
+      // Реалтайм сам подхватит изменение — но на всякий случай обновим вручную
+      updateCardStatus(orderId, "cancelled");
+    }
+
+    // ── Карточка заказа ─────────────────────────
+    function buildOrderCard(order, db) {
+      const items  = Array.isArray(order.items) ? order.items : [];
+      const status = order.status || "new";
+      const sc     = STATUS_CONFIG[status] || STATUS_CONFIG.new;
+
+      // Превью картинок (первые 3)
+      const previewHtml = items.slice(0, 3).map(item => {
+        if (item.image_url) {
+          return `<img class="order-thumb" src="${esc(item.image_url)}" alt="" onerror="this.style.display='none'">`;
+        }
+        return `<div class="order-thumb-placeholder">🌿</div>`;
+      }).join("");
+      const extra = items.length - 3;
+      const extraHtml = extra > 0 ? `<div class="order-more-badge">+${extra}</div>` : "";
+
+      // Список товаров
+      const itemsHtml = items.map(item => {
+        const parts = [];
+        if (item.flavor)   parts.push(item.flavor);
+        if (item.weight_g) parts.push(item.weight_g + " г");
+        parts.push(item.quantity + " шт.");
+        return `<div class="order-item-row">
+          ${item.image_url
+            ? `<img class="order-item-img" src="${esc(item.image_url)}" alt="" onerror="this.style.display='none'">`
+            : `<div class="order-item-img" style="background:#f0f4f0;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:9px">🌿</div>`
+          }
+          <div class="order-item-info">
+            <div class="order-item-title">${esc(item.title||"—")}</div>
+            <div class="order-item-meta">${parts.join(" · ")}</div>
+          </div>
+          <div class="order-item-price">${fmtPrice(Number(item.price||0)*item.quantity)}</div>
+        </div>`;
+      }).join("");
+
+      const deliveryText = order.delivery_type === "pickup"
+        ? "Самовывоз"
+        : [order.delivery_city, order.delivery_address].filter(Boolean).join(", ");
+
+      const canCancel = CANCELLABLE.includes(status);
+
+      const card = document.createElement("div");
+      card.className = "order-card";
+      card.dataset.id = order.id;
+      card.dataset.status = status;
+      card.dataset.deliveryType = order.delivery_type;
+
+      card.innerHTML = `
+        <div class="order-card-head">
+          <div>
+            <div class="order-num">Заказ #${order.id}</div>
+            <div class="order-date">${fmtDate(order.created_at)}</div>
+          </div>
+          <div class="order-items-preview">${previewHtml}${extraHtml}</div>
+          <div class="order-card-right">
+            <span class="status-pill ${sc.cls}">${sc.label}</span>
+            <span class="order-total-price">${fmtPrice(order.total_price)}</span>
+            <svg class="order-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+<div class="order-card-body">
+          ${buildTracker(status, order.delivery_type)}
+          <!-- ✅ ИСПРАВЛЕНО: убрали дублирующий <div class="order-items-list"> — товары рендерились дважды -->
+          <div class="order-items-list">${itemsHtml}</div>
+          <div class="order-delivery-block">
+            <div class="order-detail-item">
+              <div class="order-detail-label">Получатель</div>
+              <div class="order-detail-value">${esc(order.customer_name||"—")}</div>
+            </div>
+            <div class="order-detail-item">
+              <div class="order-detail-label">Телефон</div>
+              <div class="order-detail-value">${esc(order.customer_phone||"—")}</div>
+            </div>
+            <div class="order-detail-item">
+              <div class="order-detail-label">Доставка</div>
+              <div class="order-detail-value">${esc(deliveryText||"—")}</div>
+            </div>
+            <div class="order-detail-item">
+              <div class="order-detail-label">Итого</div>
+              <div class="order-detail-value" style="color:#3a6e4f">${fmtPrice(order.total_price)}</div>
+            </div>
+            ${order.comment ? `<div class="order-detail-item" style="grid-column:1/-1">
+              <div class="order-detail-label">Комментарий</div>
+              <div class="order-detail-value">${esc(order.comment)}</div>
+            </div>` : ""}
+          </div>
+          <button class="btn-cancel-order" style="display:${canCancel ? 'flex' : 'none'}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Отменить заказ
+          </button>
+        </div>
+      `;
+
+      // Toggle раскрытия
+      card.querySelector(".order-card-head").addEventListener("click", () => {
+        card.classList.toggle("expanded");
+      });
+
+      // Кнопка отмены
+      const cancelBtn = card.querySelector(".btn-cancel-order");
+      cancelBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        cancelOrder(db, order.id, cancelBtn);
+      });
+
+      return card;
+    }
+
+    // ── Главная функция ──────────────────────────
+    async function init() {
+      if (!window._sb) {
+        window._sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+      const db = window._sb;
+
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { window.location.href = "auth.html"; return; }
+
+      const userId = session.user.id;
+
+      // Загружаем заказы
+      const { data, error } = await db
+        .from("orders")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      document.getElementById("orders-loading").style.display = "none";
+
+      if (error) { console.error(error); return; }
+
+      const orders = data || [];
+
+      if (!orders.length) {
+        document.getElementById("orders-empty").style.display = "block";
+        return;
+      }
+
+      const badge = document.getElementById("orders-count-badge");
+      badge.textContent = `${orders.length} ${plural(orders.length)}`;
+      badge.style.display = "";
+
+      const list = document.getElementById("orders-list");
+      list.style.display = "block";
+
+      orders.forEach(order => list.appendChild(buildOrderCard(order, db)));
+
+      // Раскрываем последний активный заказ
+      const firstCard = list.querySelector(".order-card");
+      const firstOrder = orders[0];
+      if (firstCard && !["delivered","cancelled"].includes(firstOrder.status)) {
+        firstCard.classList.add("expanded");
+      }
+
+      // ── Supabase Realtime: слушаем изменения заказов этого пользователя ──
+      db.channel("orders-realtime")
+        .on(
+          "postgres_changes",
+          {
+            event:  "UPDATE",
+            schema: "public",
+            table:  "orders",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const updated = payload.new;
+            if (updated && updated.id && updated.status) {
+              updateCardStatus(updated.id, updated.status);
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+
+  })();
+  </script>
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</body>
+</html>

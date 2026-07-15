@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Подтверждение — HerbiX</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
+    :root {
+      --green-dark: #2d5a3d;
+      --green-mid:  #3a6b4a;
+      --green-light: #e8f2eb;
+      --green-accent: #5a9e6f;
+      --text-main: #1a1f1c;
+      --text-muted: #6b7a70;
+      --bg: #f5f7f5;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Mulish', sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Декоративные круги на фоне */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(90,158,111,0.12) 0%, transparent 70%);
+      top: -200px; right: -150px;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(45,90,61,0.08) 0%, transparent 70%);
+      bottom: -100px; left: -100px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 56px 48px 48px;
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 2px 40px rgba(45,90,61,0.10), 0 1px 4px rgba(0,0,0,0.04);
+      animation: rise 0.6s cubic-bezier(.22,1,.36,1) both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(32px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Иконка-кружок */
+    .icon-wrap {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: var(--green-light);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 28px;
+      animation: pop 0.5s 0.4s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes pop {
+      from { opacity: 0; transform: scale(0.5); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .icon-wrap svg {
+      width: 38px; height: 38px;
+      stroke: var(--green-mid);
+      stroke-width: 2.2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Checkmark animation */
+    .check-path {
+      stroke-dasharray: 50;
+      stroke-dashoffset: 50;
+      animation: draw 0.5s 0.7s ease forwards;
+    }
+    @keyframes draw {
+      to { stroke-dashoffset: 0; }
+    }
+
+    .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px;
+      color: var(--green-mid);
+      letter-spacing: 0.08em;
+      margin-bottom: 24px;
+      opacity: 0.7;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 500;
+      color: var(--text-main);
+      line-height: 1.25;
+      margin-bottom: 14px;
+      animation: fadeUp 0.5s 0.5s ease both;
+    }
+
+    p {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.65;
+      font-weight: 300;
+      animation: fadeUp 0.5s 0.6s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .divider {
+      width: 40px; height: 2px;
+      background: var(--green-light);
+      margin: 24px auto;
+      border-radius: 2px;
+      animation: fadeUp 0.5s 0.65s ease both;
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--text-muted);
+      opacity: 0.7;
+      animation: fadeUp 0.5s 0.7s ease both;
+    }
+
+    /* Состояние загрузки */
+    .loading .icon-wrap { background: #f0f0f0; }
+    .loading h1 { color: var(--text-muted); }
+
+    /* Состояние ошибки */
+    .error-state .icon-wrap { background: #fef2f2; }
+    .error-state .icon-wrap svg { stroke: #e05555; }
+    .error-state h1 { color: #c0392b; }
+
+    #status-icon { display: none; }
+    #loading-icon { display: block; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinner { animation: spin 1s linear infinite; transform-origin: center; }
+  </style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="logo">HerbiX</div>
+
+  <div class="icon-wrap" id="iconWrap">
+    <!-- Спиннер (загрузка) -->
+    <svg id="loading-icon" viewBox="0 0 38 38">
+      <circle class="spinner" cx="19" cy="19" r="14" stroke-dasharray="60 20" stroke-width="2.5" stroke="#3a6b4a" fill="none"/>
+    </svg>
+    <!-- Галочка (успех) -->
+    <svg id="status-icon" viewBox="0 0 38 38">
+      <polyline class="check-path" points="8,20 16,28 30,12"/>
+    </svg>
+    <!-- Крестик (ошибка) -->
+    <svg id="error-icon" viewBox="0 0 38 38" style="display:none">
+      <line x1="11" y1="11" x2="27" y2="27" stroke="#e05555" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="27" y1="11" x2="11" y2="27" stroke="#e05555" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <h1 id="title">Подтверждаем...</h1>
+  <p id="desc">Пожалуйста, подождите секунду</p>
+  <div class="divider"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // ⚠️ Замени на свои данные из Supabase → Project Settings → API
+const SUPABASE_URL = "https://qjytxxkztdeyxygoiybi.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqeXR4eGt6dGRleXh5Z29peWJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0MjM3NjcsImV4cCI6MjA4OTk5OTc2N30.afZ40Kl6SXjTt7DGtIFDyKWPsYxaC75_jL1X79PonpQ";
+
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function showSuccess() {
+    document.getElementById('loading-icon').style.display = 'none';
+    document.getElementById('status-icon').style.display = 'block';
+    document.getElementById('title').textContent = 'Вы успешно зарегистрированы!';
+    document.getElementById('desc').textContent = 'Ваш email подтверждён. Теперь вы можете войти в свой аккаунт HerbiX.';
+    document.getElementById('note').textContent = 'Можете закрыть эту страницу';
+  }
+
+  function showError(msg) {
+    document.getElementById('loading-icon').style.display = 'none';
+    document.getElementById('error-icon').style.display = 'block';
+    document.getElementById('iconWrap').style.background = '#fef2f2';
+    document.getElementById('title').style.color = '#c0392b';
+    document.getElementById('title').textContent = 'Что-то пошло не так';
+    document.getElementById('desc').textContent = msg || 'Ссылка недействительна или уже была использована.';
+    document.getElementById('note').textContent = 'Попробуйте зарегистрироваться заново';
+  }
+
+  async function confirmEmail() {
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+
+    // Обработка ошибок (истёкшая или невалидная ссылка)
+    const hashError = hashParams.get('error');
+    const errorCode = hashParams.get('error_code');
+    if (hashError) {
+      if (errorCode === 'otp_expired') {
+        showError('Ссылка для подтверждения истекла. Пожалуйста, зарегистрируйтесь заново.');
+      } else {
+        showError(hashParams.get('error_description')?.replace(/\+/g, ' ') || 'Ошибка подтверждения.');
+      }
+      return;
+    }
+
+    const token_hash = params.get('token_hash') || hashParams.get('token_hash');
+    const type = params.get('type') || hashParams.get('type') || 'signup';
+    const access_token = hashParams.get('access_token');
+    const refresh_token = hashParams.get('refresh_token');
+
+    try {
+      if (access_token && refresh_token) {
+        // Старый формат magic link — токены прямо в хэше
+        const { error } = await db.auth.setSession({ access_token, refresh_token });
+        if (error) throw error;
+        showSuccess();
+      } else if (token_hash) {
+        // Новый формат (PKCE)
+        const { error } = await db.auth.verifyOtp({ token_hash, type });
+        if (error) throw error;
+        showSuccess();
+      } else {
+        // Попробуем через exchangeCodeForSession (если используется code flow)
+        const code = params.get('code');
+        if (code) {
+          const { error } = await db.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          showSuccess();
+        } else {
+          showError('Параметры подтверждения не найдены.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showError(err.message);
+    }
+  }
+
+  confirmEmail();
+</script>
+</body>
+</html>

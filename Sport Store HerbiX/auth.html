@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>HerbiX — Вход / Регистрация</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  </head>
+  
+  <body class="auth-page">
+    <header class="header">
+      <div class="container header-content">
+        <a href="index.html" class="logo-link">
+          <img src="./assets/logo.svg" alt="HerbiX" id="logo" />
+        </a>
+        <nav class="nav">
+          <a href="catalog.html">Каталог</a>
+          <a href="index.html#about">О нас</a>
+          <a href="index.html#delivery">Доставка</a>
+          <a href="index.html#contacts">Контакты</a>
+        </nav>
+        <a href="auth.html" class="auth-user">
+          <span class="auth-user-icon">👤</span>
+          <span class="auth-user-text">Войти</span>
+        </a>
+        <button id="cart-button" class="cart-button">
+          🛒 Корзина (<span id="cart-count">0</span>)
+        </button>
+      </div>
+    </header>
+
+    <main class="container auth-container">
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <div class="auth-tab-slider"></div>
+          <button class="auth-tab active" data-tab="login">Вход</button>
+          <button class="auth-tab" data-tab="register">Регистрация</button>
+        </div>
+
+        <form id="login-form" class="auth-form active">
+          <div class="auth-field">
+            <label for="login-email">E-mail</label>
+            <input type="email" id="login-email" placeholder="you@example.com" required />
+          </div>
+          <div class="auth-field">
+            <label for="login-password">Пароль</label>
+            <input type="password" id="login-password" placeholder="Ваш пароль" required />
+          </div>
+          <button type="submit" class="btn-primary auth-submit">Войти</button>
+        </form>
+
+        <form id="register-form" class="auth-form">
+          <div class="auth-field">
+            <label for="reg-name">Имя</label>
+            <input type="text" id="reg-name" placeholder="Как к вам обращаться" />
+          </div>
+          <div class="auth-field">
+            <label for="reg-email">E-mail</label>
+            <input type="email" id="reg-email" placeholder="you@example.com" required />
+          </div>
+          <div class="auth-field">
+            <label for="reg-password">Пароль</label>
+            <input type="password" id="reg-password" placeholder="Минимум 6 символов" required />
+          </div>
+          <div class="auth-field">
+            <label for="reg-password-confirm">Повторите пароль</label>
+            <input type="password" id="reg-password-confirm" placeholder="Ещё раз пароль" required />
+          </div>
+          <button type="submit" class="btn-primary auth-submit">Зарегистрироваться</button>
+          <p class="auth-hint">Регистрируясь, вы соглашаетесь с условиями магазина HerbiX.</p>
+        </form>
+
+        <p id="auth-message" class="auth-message"></p>
+      </div>
+    </main>
+
+<div id="success-popup" class="popup-overlay">
+      <div class="popup">
+        <h3>Готово 🎉</h3>
+        <p>Вы успешно зарегистрированы!</p>
+        <button id="popup-close" class="btn-primary">Продолжить</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <!-- Порядок важен: сначала user-nav (создаёт window._sb), потом auth -->
+    <script src="assets/js/user-nav.js"></script>
+    <script src="assets/js/auth.js"></script>
+  </body>
+</html>
