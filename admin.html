@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Админка — HerbiX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f0;
+      color: #2f4633;
+      min-height: 100vh;
+    }
+
+    #admin-app   { display: block; }
+
+
+    /* ── Шапка ── */
+    .admin-header {
+      background: #1a2e1a;
+      color: #fff;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      height: 58px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .admin-logo {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: #7dd4a0;
+    }
+    .admin-logo span { color: #fff; }
+
+    /* ── Вкладки ── */
+    .admin-tabs {
+      display: flex;
+      gap: 4px;
+      margin-left: 8px;
+    }
+    .admin-tab {
+      padding: 6px 18px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.55);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .admin-tab:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .admin-tab.active { background: rgba(125,212,160,0.18); color: #7dd4a0; }
+    .admin-tab .badge {
+      background: #e05555;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      min-width: 18px;
+      text-align: center;
+      display: none;
+    }
+    .admin-tab .badge.show { display: inline-block; }
+
+    /* ── Layout ── */
+    .container {
+      width: min(1200px, 96%);
+      margin: 0 auto;
+      padding: 28px 0 60px;
+    }
+
+    /* ── Секции ── */
+    .admin-section { display: none; }
+    .admin-section.active { display: block; }
+
+    /* ── Карточка ── */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px 22px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      margin-bottom: 22px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #1a2e1a;
+    }
+
+    /* ── Формы товаров ── */
+    label {
+      font-size: 13px;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 5px;
+      color: #4b6450;
+    }
+    input[type="text"], input[type="number"], textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 9px;
+      border: 1.5px solid #d0ddcf;
+      margin-bottom: 14px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1a2e1a;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    input[type="text"]:focus, input[type="number"]:focus,
+    textarea:focus, select:focus { border-color: #3e6f52; }
+    textarea { resize: vertical; min-height: 80px; }
+    input[type="file"] { margin-bottom: 12px; }
+
+    .row { display: flex; gap: 18px; flex-wrap: wrap; }
+    .col { flex: 1; min-width: 200px; }
+
+    .btn {
+      background: #3e6f52;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn:hover { background: #2d5840; }
+    .btn:disabled { opacity: 0.55; cursor: default; }
+    .status-msg { margin-top: 8px; font-size: 13px; color: #5d7361; }
+
+    /* ── Таблица товаров ── */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 9px 11px; border-bottom: 1px solid #e8ede8; vertical-align: middle; }
+    th { text-align: left; font-weight: 700; background: #f2f7f2; color: #3a6e4f; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+    img.prod-img { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; }
+    .tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      background: #e8f4e8;
+      color: #2d5840;
+      font-weight: 600;
+    }
+    .btn-danger {
+      background: #fdecea;
+      color: #c0392b;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-danger:hover { background: #f9d6d3; }
+
+    .btn-popular-toggle {
+      border: none;
+      border-radius: 8px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn-popular-toggle:hover { transform: scale(1.05); }
+    .popular-on  { background: #fff8dc; color: #b07d00; }
+    .popular-on:hover  { background: #ffeea0; }
+    .popular-off { background: #f0f4f0; color: #7a9a7a; }
+    .popular-off:hover { background: #e0ece0; }
+
+    #images-preview { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .preview-item {
+      position: relative;
+      width: 100px; height: 100px;
+      border-radius: 10px; overflow: hidden;
+      border: 2px solid #ddd; background: #f8f8f8;
+    }
+    .preview-item img { width: 100%; height: 100%; object-fit: cover; }
+    .preview-item .remove-btn {
+      position: absolute; top: 5px; right: 5px;
+      background: #b84b4b; color: white; border: none;
+      width: 24px; height: 24px; border-radius: 50%;
+      font-size: 16px; cursor: pointer; line-height: 22px;
+    }
+
+    /* ══════════════════════════════════════
+       ЗАКАЗЫ
+    ══════════════════════════════════════ */
+
+    /* Статистика */
+    .orders-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+      border-left: 4px solid #3e6f52;
+    }
+    .stat-card.stat-new    { border-color: #e07b39; }
+    .stat-card.stat-confirmed { border-color: #3a8fd4; }
+    .stat-card.stat-delivery  { border-color: #8a5dc8; }
+    .stat-card.stat-done   { border-color: #3e6f52; }
+    .stat-card.stat-cancel { border-color: #c0392b; }
+    .stat-card.stat-total  { border-color: #1a2e1a; }
+    .stat-num {
+      font-size: 28px;
+      font-weight: 800;
+      color: #1a2e1a;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-label { font-size: 12px; color: #7a9a7a; font-weight: 600; }
+
+    /* Фильтр заказов */
+    .orders-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .filter-btn {
+      padding: 7px 16px;
+      border-radius: 999px;
+      border: 1.5px solid #ddeae1;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4b6450;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .filter-btn:hover { border-color: #3e6f52; color: #2d5840; }
+    .filter-btn.active { background: #3e6f52; border-color: #3e6f52; color: #fff; }
+
+    /* Список заказов */
+    .orders-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .order-card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1.5px solid #e8ede8;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+    .order-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+
+    .order-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      gap: 12px;
+      flex-wrap: wrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    .order-head:hover { background: #fafcfa; }
+
+    .order-id {
+      font-size: 13px;
+      font-weight: 800;
+      color: #3e6f52;
+      white-space: nowrap;
+    }
+    .order-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .order-customer {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a2e1a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-info {
+      font-size: 12px;
+      color: #7a9a7a;
+      margin-top: 2px;
+    }
+    .order-amount {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1a2e1a;
+      white-space: nowrap;
+    }
+    .order-chevron {
+      width: 20px;
+      height: 20px;
+      color: #b0c4b0;
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+    .order-card.expanded .order-chevron { transform: rotate(180deg); }
+
+    /* Статус бейдж */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .status-new          { background: #fff3ec; color: #e07b39; }
+    .status-confirmed    { background: #e8f0fb; color: #3a8fd4; }
+    .status-in_delivery  { background: #f3edfb; color: #8a5dc8; }
+    .status-delivered    { background: #e8f5ee; color: #2e7d4f; }
+    .status-cancelled    { background: #fdecea; color: #c0392b; }
+    .status-pickup_ready { background: #fff8e1; color: #b07d00; }
+    .status-picked_up    { background: #e8f5ee; color: #2e7d4f; }
+
+    /* Детали заказа */
+    .order-body {
+      display: none;
+      border-top: 1.5px solid #e8ede8;
+      padding: 18px 20px;
+    }
+    .order-card.expanded .order-body { display: block; }
+
+    .order-body-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 620px) { .order-body-grid { grid-template-columns: 1fr; } }
+
+    .order-detail-block h4 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #8aab8a;
+      margin-bottom: 10px;
+    }
+    .order-detail-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+      padding: 5px 0;
+      border-bottom: 1px solid #f0f5f0;
+      gap: 8px;
+    }
+    .order-detail-row:last-child { border-bottom: none; }
+    .order-detail-row span:first-child { color: #7a9a7a; }
+    .order-detail-row span:last-child { font-weight: 600; color: #1a2e1a; text-align: right; }
+
+    /* Товары в заказе */
+    .order-items { margin-bottom: 16px; }
+    .order-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: #f8faf8;
+      border-radius: 10px;
+      margin-bottom: 6px;
+    }
+    .order-item:last-child { margin-bottom: 0; }
+    .order-item-img {
+      width: 40px; height: 40px;
+      border-radius: 7px;
+      object-fit: cover;
+      background: #e8ede8;
+      flex-shrink: 0;
+    }
+    .order-item-info { flex: 1; min-width: 0; }
+    .order-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a2e1a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-item-meta { font-size: 12px; color: #7a9a7a; }
+    .order-item-price { font-size: 13px; font-weight: 700; color: #3e6f52; white-space: nowrap; }
+
+    /* Смена статуса */
+    .order-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 14px;
+      border-top: 1.5px solid #e8ede8;
+      flex-wrap: wrap;
+    }
+    .order-actions label { font-size: 12px; color: #7a9a7a; margin: 0; }
+    .status-select {
+      padding: 8px 12px;
+      border-radius: 9px;
+      border: 1.5px solid #d0ddcf;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a2e1a;
+      background: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      outline: none;
+      flex: 1;
+      min-width: 160px;
+      max-width: 260px;
+      margin-bottom: 0;
+    }
+    .btn-save-status {
+      padding: 8px 20px;
+      border-radius: 9px;
+      border: none;
+      background: #3e6f52;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-save-status:hover { background: #2d5840; }
+    .btn-save-status:disabled { opacity: 0.5; cursor: default; }
+    .btn-delete-order {
+      padding: 8px 14px;
+      border-radius: 9px;
+      border: none;
+      background: #fdecea;
+      color: #c0392b;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+      margin-left: auto;
+    }
+    .btn-delete-order:hover { background: #f9d6d3; }
+
+    .order-status-saved {
+      font-size: 12px;
+      color: #3e6f52;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .order-status-saved.show { opacity: 1; }
+
+    /* Пустое состояние */
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      color: #8aab8a;
+    }
+    .empty-state svg { opacity: 0.3; margin-bottom: 14px; }
+    .empty-state p { font-size: 15px; font-weight: 600; }
+    .empty-state small { font-size: 13px; opacity: 0.8; }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f4f0 25%, #e4ebe4 50%, #f0f4f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      border-radius: 8px;
+      height: 70px;
+      margin-bottom: 10px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    @media (max-width: 700px) {
+      .admin-header { padding: 0 16px; gap: 16px; }
+      .admin-tab { padding: 6px 12px; font-size: 13px; }
+      .container { padding: 16px 0 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="admin-app">
+
+  <!-- ── Шапка ── -->
+  <header class="admin-header">
+    <div class="admin-logo">Herbi<span>X</span> Admin</div>
+    <nav class="admin-tabs">
+      <button class="admin-tab active" data-section="products">
+        📦 Товары
+      </button>
+      <button class="admin-tab" data-section="orders">
+        🧾 Заказы
+        <span class="badge" id="new-orders-badge">0</span>
+      </button>
+    </nav>
+  </header>
+
+  <div class="container">
+
+    <!-- ══════════════════════════════
+         РАЗДЕЛ: ТОВАРЫ
+    ══════════════════════════════ -->
+    <div class="admin-section active" id="section-products">
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Добавить товар</div>
+        </div>
+        <form id="product-form">
+          <div class="row">
+            <div class="col">
+              <label for="title">Название товара</label>
+              <input type="text" id="title" name="title" required />
+
+              <label for="price">Цена (₸)</label>
+              <input type="number" id="price" name="price" required min="0" step="1" />
+
+              <label for="category">Категория</label>
+              <select id="category" name="category">
+                <option value="">(не указана)</option>
+                <option value="belki">Белки</option>
+                <option value="geinery">Гейнеры</option>
+                <option value="aminokisloty">Аминокислоты</option>
+              </select>
+            </div>
+
+            <div class="col">
+              <label for="description">Описание</label>
+              <textarea id="description" name="description" placeholder="Краткое описание товара..."></textarea>
+
+              <label>Фото товара <span style="color:#999; font-size:12px;">(можно несколько)</span></label>
+              <input type="file" id="images-input" accept="image/*" multiple />
+              <div id="images-preview"></div>
+
+              <label style="margin-top:14px; display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                <input type="checkbox" id="is_popular" style="width:auto; margin:0;" />
+                Отображать как популярный товар
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn" id="submit-btn" style="margin-top:6px;">Сохранить товар</button>
+          <div id="form-status" class="status-msg"></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Список товаров</div>
+          <div id="list-status" class="status-msg"></div>
+        </div>
+        <div style="overflow-x: auto">
+          <table id="products-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Фото</th>
+                <th>Название</th>
+                <th>Категория</th>
+                <th>Цена</th>
+                <th>Популярный</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════
+         РАЗДЕЛ: ЗАКАЗЫ
+    ══════════════════════════════ -->
+    <div class="admin-section" id="section-orders">
+
+      <!-- Статистика -->
+      <div class="orders-stats" id="orders-stats">
+        <div class="stat-card stat-new">
+          <div class="stat-num" id="stat-new">—</div>
+          <div class="stat-label">Новые</div>
+        </div>
+        <div class="stat-card stat-confirmed">
+          <div class="stat-num" id="stat-confirmed">—</div>
+          <div class="stat-label">Подтверждены</div>
+        </div>
+        <div class="stat-card stat-delivery">
+          <div class="stat-num" id="stat-delivery">—</div>
+          <div class="stat-label">В доставке</div>
+        </div>
+        <div class="stat-card stat-done">
+          <div class="stat-num" id="stat-done">—</div>
+          <div class="stat-label">Доставлены</div>
+        </div>
+        <div class="stat-card stat-cancel">
+          <div class="stat-num" id="stat-cancel">—</div>
+          <div class="stat-label">Отменены</div>
+        </div>
+        <div class="stat-card stat-total">
+          <div class="stat-num" id="stat-revenue">—</div>
+          <div class="stat-label">Выручка (₸)</div>
+        </div>
+      </div>
+
+      <!-- Фильтры -->
+      <div class="orders-filters">
+        <button class="filter-btn active" data-status="all">Все</button>
+        <button class="filter-btn" data-status="new">🟠 Новые</button>
+        <button class="filter-btn" data-status="confirmed">🔵 Подтверждены</button>
+        <button class="filter-btn" data-status="in_delivery">🟣 В Пути</button>
+        <button class="filter-btn" data-status="delivered">🟢 Доставлены</button>
+        <button class="filter-btn" data-status="cancelled">🔴 Отменены</button>
+        <button class="filter-btn" data-status="pickup_ready">🟡 Самовывоз</button>
+        <button class="filter-btn" data-status="picked_up">✅ Получены</button>
+      </div>
+
+      <!-- Список -->
+      <div id="orders-loading">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+      <div class="orders-list" id="orders-list" style="display:none;"></div>
+      <div id="orders-empty" style="display:none;">
+        <div class="card">
+          <div class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+            <p>Заказов пока нет</p>
+            <small>Они появятся здесь после первой покупки</small>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div><!-- #admin-app -->
+
+<script>
+const SUPABASE_URL = "https://qjytxxkztdeyxygoiybi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqeXR4eGt6dGRleXh5Z29peWJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0MjM3NjcsImV4cCI6MjA4OTk5OTc2N30.afZ40Kl6SXjTt7DGtIFDyKWPsYxaC75_jL1X79PonpQ";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const BUCKET = "herbix-products";
+
+// ══════════════════════════════════════════════
+// НАВИГАЦИЯ ПО ВКЛАДКАМ
+// ══════════════════════════════════════════════
+document.querySelectorAll(".admin-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".admin-section").forEach(s => s.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("section-" + tab.dataset.section).classList.add("active");
+    if (tab.dataset.section === "orders") loadOrders();
+  });
+});
+
+// ══════════════════════════════════════════════
+// РАЗДЕЛ ТОВАРОВ
+// ══════════════════════════════════════════════
+let selectedImageUrls = [];
+
+async function uploadSingleImage(file) {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  const { error } = await db.storage.from(BUCKET).upload(fileName, file, { upsert: false });
+  if (error) throw error;
+  return db.storage.from(BUCKET).getPublicUrl(fileName).data.publicUrl;
+}
+
+function renderPreview() {
+  const c = document.getElementById("images-preview");
+  c.innerHTML = "";
+  selectedImageUrls.forEach((url, i) => {
+    const div = document.createElement("div");
+    div.className = "preview-item";
+    div.innerHTML = `<img src="${url}"><button class="remove-btn" data-index="${i}">×</button>`;
+    c.appendChild(div);
+  });
+  c.querySelectorAll(".remove-btn").forEach(btn => {
+    btn.addEventListener("click", () => { selectedImageUrls.splice(+btn.dataset.index, 1); renderPreview(); });
+  });
+}
+
+async function loadProducts() {
+  const tbody = document.querySelector("#products-table tbody");
+  const listStatus = document.getElementById("list-status");
+  listStatus.textContent = "Загружаем...";
+  tbody.innerHTML = "";
+
+  const { data, error } = await db.from("products")
+    .select("id,title,price,category,image_url,images,is_popular")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    listStatus.textContent = "Ошибка загрузки: " + error.message;
+    console.error(error);
+    return;
+  }
+
+  listStatus.textContent = data.length ? "" : "Товаров пока нет";
+
+  data.forEach(p => {
+    const cnt = p.images ? p.images.length : (p.image_url ? 1 : 0);
+    const img = (p.images && p.images.length) ? p.images[0] : p.image_url;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${p.id}</td>
+      <td>${img ? `<img src="${img}" class="prod-img">` : "-"}${cnt > 1 ? ` <span class="tag">+${cnt-1}</span>` : ""}</td>
+      <td>${esc(p.title||"")}</td>
+      <td>${p.category ? `<span class="tag">${esc(p.category)}</span>` : "-"}</td>
+      <td>${Number(p.price||0).toLocaleString("ru-RU")} ₸</td>
+      <td>
+        <select class="popular-select" data-id="${p.id}"
+                style="padding:6px 10px; border-radius:8px; font-size:13px; border:1.5px solid #d0ddcf;">
+          <option value="false" ${!p.is_popular ? 'selected' : ''}>☆ Нет</option>
+          <option value="true" ${p.is_popular ? 'selected' : ''}>⭐ Да</option>
+        </select>
+        <span class="save-status" id="save-popular-${p.id}"
+              style="margin-left:8px; font-size:12px; color:#2e7d4f; font-weight:600; opacity:0; transition:opacity 0.3s;">
+          ✓ Сохранено
+        </span>
+      </td>
+      <td><button class="btn-danger" onclick="deleteProduct(${p.id})">Удалить</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.querySelectorAll('.popular-select').forEach(select => {
+    select.addEventListener('change', async function() {
+      const id = Number(this.dataset.id);
+      const newValue = this.value === 'true';
+      const saveSpan = document.getElementById(`save-popular-${id}`);
+      const originalValue = this.value;
+
+      try {
+        const { error } = await db
+          .from("products")
+          .update({ is_popular: newValue })
+          .eq("id", id)
+          .select();
+
+        if (error) throw error;
+
+        saveSpan.style.opacity = "1";
+        setTimeout(() => { saveSpan.style.opacity = "0"; }, 1800);
+      } catch (err) {
+        console.error("Ошибка обновления:", err);
+        alert("Ошибка сохранения:\n" + (err.message || err));
+        this.value = originalValue;
+      }
+    });
+  });
+}
+
+async function deleteProduct(id) {
+  if (!confirm(`Удалить товар #${id}?`)) return;
+  const { error } = await db.from("products").delete().eq("id", id);
+  if (!error) loadProducts();
+}
+window.deleteProduct = deleteProduct;
+
+async function togglePopular(id, currentValue) {
+  const newValue = currentValue === 0 ? true : false;
+  const { error } = await db.from("products").update({ is_popular: newValue }).eq("id", id);
+  if (error) { alert("Ошибка: " + error.message); return; }
+  loadProducts();
+}
+window.togglePopular = togglePopular;
+
+document.getElementById("images-input").addEventListener("change", async e => {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  const fs = document.getElementById("form-status");
+  fs.textContent = `Загружаем ${files.length} фото...`;
+  for (const file of files) {
+    try { selectedImageUrls.push(await uploadSingleImage(file)); renderPreview(); }
+    catch (err) { alert("Не удалось загрузить: " + file.name); }
+  }
+  fs.textContent = "";
+  e.target.value = "";
+});
+
+document.getElementById("product-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const fs = document.getElementById("form-status");
+  const btn = document.getElementById("submit-btn");
+  fs.textContent = "";
+  btn.disabled = true; btn.textContent = "Сохраняю...";
+  if (!selectedImageUrls.length) { fs.textContent = "Добавьте хотя бы одно фото!"; btn.disabled = false; btn.textContent = "Сохранить товар"; return; }
+  try {
+    const { error } = await db.from("products").insert([{
+      title: document.getElementById("title").value.trim(),
+      price: Number(document.getElementById("price").value),
+      category: document.getElementById("category").value || null,
+      description: document.getElementById("description").value.trim() || null,
+      image_url: selectedImageUrls[0],
+      images: [...selectedImageUrls],
+      is_popular: document.getElementById("is_popular").checked,
+    }]);
+    if (error) throw error;
+    fs.textContent = "✅ Товар успешно добавлен!";
+    document.getElementById("product-form").reset();
+    selectedImageUrls = []; renderPreview(); loadProducts();
+  } catch (err) { fs.textContent = "Ошибка: " + err.message; }
+  finally { btn.disabled = false; btn.textContent = "Сохранить товар"; }
+});
+
+// ══════════════════════════════════════════════
+// РАЗДЕЛ ЗАКАЗОВ
+// ══════════════════════════════════════════════
+
+const STATUS_LABELS = {
+  new:          "Новый",
+  confirmed:    "Подтверждён",
+  in_delivery:  "В доставке",
+  delivered:    "Доставлен",
+  cancelled:    "Отменён",
+  pickup_ready: "Готов к выдаче",
+  picked_up:    "Выдан",
+};
+
+let allOrders = [];
+let currentFilter = "all";
+
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.status;
+    renderOrders();
+  });
+});
+
+async function loadOrders() {
+  document.getElementById("orders-loading").style.display = "block";
+  document.getElementById("orders-list").style.display = "none";
+  document.getElementById("orders-empty").style.display = "none";
+
+  const { data, error } = await db
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  document.getElementById("orders-loading").style.display = "none";
+
+  if (error) { console.error(error); return; }
+
+  allOrders = data || [];
+  updateStats();
+  renderOrders();
+  updateNewBadge();
+}
+
+function updateStats() {
+  const counts = { new: 0, confirmed: 0, in_delivery: 0, delivered: 0, cancelled: 0 };
+  let revenue = 0;
+  allOrders.forEach(o => {
+    if (counts[o.status] !== undefined) counts[o.status]++;
+    if (o.status === "delivered") revenue += Number(o.total_price || 0);
+  });
+  document.getElementById("stat-new").textContent = counts.new;
+  document.getElementById("stat-confirmed").textContent = counts.confirmed;
+  document.getElementById("stat-delivery").textContent = counts.in_delivery;
+  document.getElementById("stat-done").textContent = counts.delivered;
+  document.getElementById("stat-cancel").textContent = counts.cancelled;
+  document.getElementById("stat-revenue").textContent = revenue.toLocaleString("ru-RU");
+}
+
+function updateNewBadge() {
+  const newCount = allOrders.filter(o => o.status === "new").length;
+  const badge = document.getElementById("new-orders-badge");
+  badge.textContent = newCount;
+  badge.classList.toggle("show", newCount > 0);
+}
+
+function renderOrders() {
+  const list = document.getElementById("orders-list");
+  const empty = document.getElementById("orders-empty");
+
+  const filtered = currentFilter === "all"
+    ? allOrders
+    : allOrders.filter(o => o.status === currentFilter);
+
+  if (!filtered.length) {
+    list.style.display = "none";
+    empty.style.display = "block";
+    return;
+  }
+
+  list.style.display = "flex";
+  empty.style.display = "none";
+  list.innerHTML = "";
+
+  filtered.forEach(order => {
+    const card = buildOrderCard(order);
+    list.appendChild(card);
+  });
+}
+
+function showConfirm({ title, message, confirmText = "Удалить", onConfirm }) {
+  const old = document.getElementById("admin-confirm-modal");
+  if (old) old.remove();
+
+  const el = document.createElement("div");
+  el.id = "admin-confirm-modal";
+  el.style.cssText = `
+    position:fixed;inset:0;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(10,20,12,0.6);backdrop-filter:blur(6px);
+    animation:adminFadeIn 0.18s ease both;
+  `;
+  el.innerHTML = `
+    <style>
+      @keyframes adminFadeIn { from{opacity:0} to{opacity:1} }
+      @keyframes adminPopIn  { from{opacity:0;transform:translateY(20px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+    </style>
+    <div style="
+      background:#fff;border-radius:20px;
+      padding:32px 28px 24px;width:min(380px,92vw);
+      text-align:center;position:relative;
+      box-shadow:0 24px 64px rgba(0,0,0,0.25);
+      animation:adminPopIn 0.28s cubic-bezier(0.22,1,0.36,1) both;
+    ">
+      <div style="
+        width:60px;height:60px;border-radius:50%;
+        background:#fef0ee;
+        display:flex;align-items:center;justify-content:center;
+        margin:0 auto 18px;
+        box-shadow:0 0 0 8px rgba(192,57,43,0.07);
+      ">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.2" stroke-linecap="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+        </svg>
+      </div>
+      <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;color:#111d11;">${title}</h3>
+      <p style="margin:0 0 24px;font-size:13.5px;color:#5d7361;line-height:1.55;">${message}</p>
+      <div style="display:flex;gap:10px;">
+        <button id="admin-confirm-cancel" style="
+          flex:1;padding:12px;border-radius:12px;
+          border:1.5px solid #ddeae1;background:#fff;
+          color:#4b6450;font-size:14px;font-weight:600;cursor:pointer;
+          transition:background 0.15s;font-family:inherit;
+        ">Отмена</button>
+        <button id="admin-confirm-ok" style="
+          flex:1;padding:12px;border-radius:12px;border:none;
+          background:#c0392b;color:#fff;
+          font-size:14px;font-weight:700;cursor:pointer;
+          box-shadow:0 2px 0 #922b21;
+          transition:transform 0.12s,opacity 0.15s;font-family:inherit;
+        ">${confirmText}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(el);
+
+  const close = () => el.remove();
+  el.querySelector("#admin-confirm-cancel").addEventListener("click", close);
+  el.addEventListener("click", (e) => { if (e.target === el) close(); });
+  el.querySelector("#admin-confirm-ok").addEventListener("click", () => {
+    close();
+    onConfirm();
+  });
+
+  const okBtn = el.querySelector("#admin-confirm-ok");
+  okBtn.addEventListener("mouseover", () => { okBtn.style.opacity = "0.88"; okBtn.style.transform = "translateY(-1px)"; });
+  okBtn.addEventListener("mouseout",  () => { okBtn.style.opacity = "1";    okBtn.style.transform = ""; });
+  const cancelBtn = el.querySelector("#admin-confirm-cancel");
+  cancelBtn.addEventListener("mouseover", () => { cancelBtn.style.background = "#f0f7f3"; });
+  cancelBtn.addEventListener("mouseout",  () => { cancelBtn.style.background = "#fff"; });
+}
+
+function buildOrderCard(order) {
+  const card = document.createElement("div");
+  card.className = "order-card";
+  card.dataset.id = order.id;
+
+  const date = new Date(order.created_at).toLocaleString("ru-RU", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+
+  const items = Array.isArray(order.items) ? order.items : [];
+
+  card.innerHTML = `
+    <div class="order-head">
+      <div class="order-id">#${order.id}</div>
+      <div class="order-meta">
+        <div class="order-customer">${esc(order.customer_name || "—")}</div>
+        <div class="order-info">${esc(order.customer_phone)} · ${date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span class="status-badge status-${order.status}">${STATUS_LABELS[order.status] || order.status}</span>
+        <div class="order-amount">${Number(order.total_price||0).toLocaleString("ru-RU")} ₸</div>
+      </div>
+      <svg class="order-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+
+    <div class="order-body">
+      <div class="order-body-grid">
+        <div class="order-detail-block">
+          <h4>Покупатель</h4>
+          <div class="order-detail-row"><span>Имя</span><span>${esc(order.customer_name||"—")}</span></div>
+          <div class="order-detail-row"><span>Телефон</span><span>${esc(order.customer_phone||"—")}</span></div>
+          <div class="order-detail-row"><span>Email</span><span>${esc(order.customer_email||"—")}</span></div>
+          ${order.comment ? `<div class="order-detail-row"><span>Комментарий</span><span>${esc(order.comment)}</span></div>` : ""}
+        </div>
+        <div class="order-detail-block">
+          <h4>Доставка</h4>
+          <div class="order-detail-row"><span>Способ</span><span>${order.delivery_type === "pickup" ? "Самовывоз" : "Курьер"}</span></div>
+          ${order.delivery_city ? `<div class="order-detail-row"><span>Город</span><span>${esc(order.delivery_city)}</span></div>` : ""}
+          ${order.delivery_address ? `<div class="order-detail-row"><span>Адрес</span><span>${esc(order.delivery_address)}</span></div>` : ""}
+          <div class="order-detail-row"><span>Дата заказа</span><span>${date}</span></div>
+        </div>
+      </div>
+
+      <div class="order-detail-block" style="margin-bottom:16px;">
+        <h4>Товары (${items.length} поз.)</h4>
+        <div class="order-items">
+          ${items.map(item => `
+            <div class="order-item">
+              <div class="order-item-info">
+                <div class="order-item-title">${esc(item.title||"—")}</div>
+                <div class="order-item-meta">
+                  ${[item.flavor, item.weight_g ? item.weight_g + " г" : null].filter(Boolean).join(" · ")}
+                  ${(item.flavor||item.weight_g) ? " · " : ""}${item.quantity} шт. × ${Number(item.price||0).toLocaleString("ru-RU")} ₸
+                </div>
+              </div>
+              <div class="order-item-price">${(Number(item.price||0)*item.quantity).toLocaleString("ru-RU")} ₸</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="order-actions">
+        <label>Статус:</label>
+        <select class="status-select" data-order-id="${order.id}">
+          ${order.delivery_type === "pickup" ? `
+          <option value="new"          ${order.status==="new"?"selected":""}>🟠 Новый</option>
+          <option value="confirmed"    ${order.status==="confirmed"?"selected":""}>🔵 Подтверждён</option>
+          <option value="pickup_ready" ${order.status==="pickup_ready"?"selected":""}>🟡 Готов к выдаче</option>
+          <option value="picked_up"    ${order.status==="picked_up"?"selected":""}>✅ Выдан</option>
+          ` : `
+          <option value="new"          ${order.status==="new"?"selected":""}>🟠 Новый</option>
+          <option value="confirmed"    ${order.status==="confirmed"?"selected":""}>🔵 Подтверждён</option>
+          <option value="in_delivery"  ${order.status==="in_delivery"?"selected":""}>🟣 В доставке</option>
+          <option value="delivered"    ${order.status==="delivered"?"selected":""}>🟢 Доставлен</option>
+          <option value="cancelled"    ${order.status==="cancelled"?"selected":""}>🔴 Отменён</option>
+          `}
+        </select>
+        <button class="btn-save-status" data-order-id="${order.id}">Сохранить</button>
+        <span class="order-status-saved" id="saved-${order.id}">✓ Сохранено</span>
+        <button class="btn-delete-order" data-order-id="${order.id}">🗑 Удалить</button>
+      </div>
+    </div>
+  `;
+
+  card.querySelector(".order-head").addEventListener("click", () => {
+    card.classList.toggle("expanded");
+  });
+
+  card.querySelector(".btn-save-status").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const rawId = btn.dataset.orderId;
+    const orderId = Number(rawId);
+    const select = card.querySelector(`.status-select[data-order-id="${rawId}"]`);
+    const newStatus = select.value;
+    btn.disabled = true; btn.textContent = "Сохраняем...";
+    const { error } = await db.from("orders").update({ status: newStatus }).eq("id", orderId);
+    btn.disabled = false; btn.textContent = "Сохранить";
+    if (error) {
+      console.error("Update status error:", error);
+      alert(`Ошибка обновления статуса: ${error.message}`);
+      return;
+    }
+    const o = allOrders.find(x => Number(x.id) === orderId);
+    if (o) o.status = newStatus;
+    card.querySelector(".status-badge").className = `status-badge status-${newStatus}`;
+    card.querySelector(".status-badge").textContent = STATUS_LABELS[newStatus] || newStatus;
+    const saved = document.getElementById(`saved-${rawId}`);
+    if (saved) { saved.classList.add("show"); setTimeout(() => saved.classList.remove("show"), 2200); }
+    updateStats(); updateNewBadge();
+  });
+
+  card.querySelector(".btn-delete-order").addEventListener("click", (e) => {
+    e.stopPropagation();
+    showConfirm({
+      title: `Удалить заказ #${order.id}?`,
+      message: "Это действие необратимо. Заказ будет удалён из базы данных навсегда.",
+      confirmText: "Удалить",
+      onConfirm: async () => {
+        const btn = card.querySelector(".btn-delete-order");
+        const orderId = Number(order.id);
+        btn.disabled = true;
+        btn.textContent = "Удаляем...";
+
+        const { error } = await db.from("orders").delete().eq("id", orderId);
+
+        if (error) {
+          console.error("Delete order error:", error);
+          showConfirm({
+            title: "Ошибка удаления",
+            message: `${error.message}\n\nПроверьте RLS-политики: Supabase → orders → Policies → DELETE.`,
+            confirmText: "Понятно",
+            onConfirm: () => {},
+          });
+          btn.disabled = false;
+          btn.textContent = "🗑 Удалить";
+          return;
+        }
+
+        card.style.transition = "opacity 0.28s, transform 0.28s";
+        card.style.opacity = "0";
+        card.style.transform = "scale(0.96)";
+        setTimeout(() => {
+          allOrders = allOrders.filter(o => Number(o.id) !== orderId);
+          updateStats(); renderOrders(); updateNewBadge();
+        }, 290);
+      }
+    });
+  });
+
+  return card;
+}
+
+// ══════════════════════════════════════════════
+// УТИЛИТЫ
+// ══════════════════════════════════════════════
+function esc(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// ══════════════════════════════════════════════
+// СТАРТ: сначала guard, потом инициализация
+// ══════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+  loadProducts();
+
+  db.from("orders").select("id", { count: "exact" }).eq("status", "new").then(({ count }) => {
+    if (count > 0) {
+      const badge = document.getElementById("new-orders-badge");
+      badge.textContent = count;
+      badge.classList.add("show");
+    }
+  });
+});
+</script>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</body>
+</html>
